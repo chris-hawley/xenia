@@ -22,6 +22,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+#include <libgen.h>
+#include <pwd.h>
 #include <iostream>
 
 namespace xe {
