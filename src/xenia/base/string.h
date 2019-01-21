@@ -147,10 +147,13 @@ std::basic_string<T> find_name_from_path(const std::basic_string<T>& path,
   if (!path.empty()) {
     typename std::basic_string<T>::size_type from(std::basic_string<T>::npos);
     if (path.back() == sep) {
+      if (path.length() == 1) {
+        return path;
+      }
       from = path.size() - 2;
     }
     auto pos(path.find_last_of(sep, from));
-    if (pos != std::basic_string<T>::npos) {
+    if (pos != std::basic_string<T>::npos && pos != from) {
       if (from == std::basic_string<T>::npos) {
         name = path.substr(pos + 1);
       } else {
@@ -171,18 +174,28 @@ inline std::basic_string<T> find_name_from_path(const T* path,
 template <typename T>
 std::basic_string<T> find_base_path(const std::basic_string<T>& path,
                                     T sep = xe::kPathSeparator<T>) {
+  auto path_start = path.find_first_of(T(':'));
+  if (path_start == std::basic_string<T>::npos) {
+    path_start = 0;  // Unix-like or local file
+  } else {
+    path_start++;  // Win32-like absolute path, i.e search after C:
+  }
   auto last_slash = path.find_last_of(sep);
   if (last_slash == std::basic_string<T>::npos) {
-    return path;
+    return std::basic_string<T>();
+  } else if (last_slash == path_start) {  // Root directory
+    return path.substr(0, path_start + 1);
   } else if (last_slash == path.length() - 1) {
     auto prev_slash = path.find_last_of(sep, last_slash - 1);
     if (prev_slash == std::basic_string<T>::npos) {
       return std::basic_string<T>();
+    } else if (prev_slash == path_start) {
+      return path.substr(0, path_start + 1);
     } else {
-      return path.substr(0, prev_slash + 1);
+      return path.substr(0, prev_slash);
     }
   } else {
-    return path.substr(0, last_slash + 1);
+    return path.substr(0, last_slash);
   }
 }
 template <typename T>
