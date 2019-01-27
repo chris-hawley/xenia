@@ -122,6 +122,19 @@ TEST_CASE("find_base_path", "string") {
           L"/home/xenia/New Volume");
 }
 
+TEST_CASE("StringBuffer") {
+  StringBuffer sb;
+  uint32_t module_flags = 0x1000000;
+
+  std::string path_(R"(\Device\Cdrom0\default.xex)");
+  sb.AppendFormat("Module %s:\n", path_.c_str());
+  REQUIRE(sb.to_string() == "Module \\Device\\Cdrom0\\default.xex:\n");
+  sb.AppendFormat("    Module Flags: %.8X\n", module_flags);
+  REQUIRE(
+      sb.to_string() ==
+      "Module \\Device\\Cdrom0\\default.xex:\n    Module Flags: 01000000\n");
+}
+
 }  // namespace test
 }  // namespace base
 }  // namespace xe
