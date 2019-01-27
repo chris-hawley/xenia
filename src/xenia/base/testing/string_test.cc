@@ -8,6 +8,7 @@
 */
 
 #include "xenia/base/string.h"
+#include "xenia/base/string_buffer.h"
 
 #include "third_party/catch/include/catch.hpp"
 
@@ -119,6 +120,19 @@ TEST_CASE("find_base_path", "string") {
           "/home/xenia/New Volume");
   REQUIRE(find_base_path(L"/home/xenia/New Volume/file name.txt", L'/') ==
           L"/home/xenia/New Volume");
+}
+
+TEST_CASE("StringBuffer") {
+  StringBuffer sb;
+  uint32_t module_flags = 0x1000000;
+
+  std::string path_(R"(\Device\Cdrom0\default.xex)");
+  sb.AppendFormat("Module %s:\n", path_.c_str());
+  REQUIRE(sb.to_string() == "Module \\Device\\Cdrom0\\default.xex:\n");
+  sb.AppendFormat("    Module Flags: %.8X\n", module_flags);
+  REQUIRE(
+      sb.to_string() ==
+      "Module \\Device\\Cdrom0\\default.xex:\n    Module Flags: 01000000\n");
 }
 
 }  // namespace test
