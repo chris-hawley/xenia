@@ -18,6 +18,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <cstdlib>
+#include <cstring>
 
 namespace xe {
 namespace filesystem {
@@ -181,11 +183,18 @@ std::vector<FileInfo> ListFiles(const std::wstring& path) {
   }
 
   while (auto ent = readdir(dir)) {
+    if (std::strcmp(ent->d_name, ".") == 0 ||
+        std::strcmp(ent->d_name, "..") == 0) {
+      continue;
+    }
+
     FileInfo info;
 
     info.name = xe::to_wstring(ent->d_name);
     struct stat st;
-    stat((xe::to_string(path) + xe::to_string(info.name)).c_str(), &st);
+    auto full_path = xe::to_string(xe::join_paths(path, info.name));
+    auto ret = stat(full_path.c_str(), &st);
+    assert_zero(ret);
     info.create_timestamp = convertUnixtimeToWinFiletime(st.st_ctime);
     info.access_timestamp = convertUnixtimeToWinFiletime(st.st_atime);
     info.write_timestamp = convertUnixtimeToWinFiletime(st.st_mtime);
@@ -194,7 +203,7 @@ std::vector<FileInfo> ListFiles(const std::wstring& path) {
       info.total_size = 0;
     } else {
       info.type = FileInfo::Type::kFile;
-      info.total_size = st.st_size;
+      info.total_size = static_cast<size_t>(st.st_size);
     }
     result.push_back(info);
   }
