@@ -11,6 +11,7 @@
 #define XENIA_GPU_SHADER_TRANSLATOR_H_
 
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -45,6 +46,21 @@ class ShaderTranslator {
   bool is_vertex_shader() const { return shader_type_ == ShaderType::kVertex; }
   // True if the current shader is a pixel shader.
   bool is_pixel_shader() const { return shader_type_ == ShaderType::kPixel; }
+  const Shader::ConstantRegisterMap& constant_register_map() const {
+    return constant_register_map_;
+  }
+  // True if the current shader addresses general-purpose registers with dynamic
+  // indices.
+  bool uses_register_dynamic_addressing() const {
+    return uses_register_dynamic_addressing_;
+  }
+  // True if the current shader writes to a color target on any execution path.
+  bool writes_color_target(int i) const { return writes_color_targets_[i]; }
+  // True if the current shader overrides the pixel depth.
+  bool writes_depth() const { return writes_depth_; }
+  // True if the pixel shader can potentially have early depth/stencil testing
+  // enabled, provided alpha testing is disabled.
+  bool early_z_allowed() const { return early_z_allowed_; }
   // A list of all vertex bindings, populated before translation occurs.
   const std::vector<Shader::VertexBinding>& vertex_bindings() const {
     return vertex_bindings_;
@@ -52,6 +68,20 @@ class ShaderTranslator {
   // A list of all texture bindings, populated before translation occurs.
   const std::vector<Shader::TextureBinding>& texture_bindings() const {
     return texture_bindings_;
+  }
+
+  // Based on the number of AS_VS/PS_EXPORT_STREAM_* enum sets found in a game
+  // .pdb.
+  static constexpr uint32_t kMaxMemExports = 16;
+  // Bits indicating which eM# registers have been written to after each
+  // `alloc export`, for up to kMaxMemExports exports. This will contain zero
+  // for certain corrupt exports - that don't write to eA before writing to eM#,
+  // or if the write was done any way other than MAD with a stream constant.
+  const uint8_t* memexport_eM_written() const { return memexport_eM_written_; }
+  // All c# registers used as the addend in MAD operations to eA, populated
+  // before translation occurs.
+  const std::set<uint32_t>& memexport_stream_constants() const {
+    return memexport_stream_constants_;
   }
 
   // Current line number in the ucode disassembly.
@@ -133,6 +163,7 @@ class ShaderTranslator {
     const char* name;
     size_t argument_count;
     int src_swizzle_component_count;
+    bool disable_early_z;
   };
 
   bool TranslateInternal(Shader* shader);
@@ -143,10 +174,9 @@ class ShaderTranslator {
   void AppendUcodeDisasmFormat(const char* format, ...);
 
   bool TranslateBlocks();
-  void GatherBindingInformation(const ucode::ControlFlowInstruction& cf);
-  void GatherVertexBindingInformation(const ucode::VertexFetchInstruction& op);
-  void GatherTextureBindingInformation(
-      const ucode::TextureFetchInstruction& op);
+  void GatherInstructionInformation(const ucode::ControlFlowInstruction& cf);
+  void GatherVertexFetchInformation(const ucode::VertexFetchInstruction& op);
+  void GatherTextureFetchInformation(const ucode::TextureFetchInstruction& op);
   void TranslateControlFlowInstruction(const ucode::ControlFlowInstruction& cf);
   void TranslateControlFlowNop(const ucode::ControlFlowInstruction& cf);
   void TranslateControlFlowExec(const ucode::ControlFlowExecInstruction& cf);
@@ -216,7 +246,17 @@ class ShaderTranslator {
   uint32_t unique_texture_bindings_ = 0;
 
   Shader::ConstantRegisterMap constant_register_map_ = {0};
+  bool uses_register_dynamic_addressing_ = false;
   bool writes_color_targets_[4] = {false, false, false, false};
+  bool writes_depth_ = false;
+  bool early_z_allowed_ = true;
+
+  uint32_t memexport_alloc_count_ = 0;
+  // For register allocation in implementations - what was used after each
+  // `alloc export`.
+  uint32_t memexport_eA_written_ = 0;
+  uint8_t memexport_eM_written_[kMaxMemExports] = {0};
+  std::set<uint32_t> memexport_stream_constants_;
 
   static const AluOpcodeInfo alu_vector_opcode_infos_[0x20];
   static const AluOpcodeInfo alu_scalar_opcode_infos_[0x40];

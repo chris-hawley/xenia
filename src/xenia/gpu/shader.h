@@ -31,8 +31,8 @@ enum class InstructionStorageTarget {
   kPosition,
   // Result is stored to the point size export (gl_PointSize).
   kPointSize,
-  // Result is stored as memexport destination address.
-  // [physical >> 2, ??, ??, ??]
+  // Result is stored as memexport destination address
+  // (see xenos::xe_gpu_memexport_stream_t).
   kExportAddress,
   // Result is stored to memexport destination data.
   kExportData,
@@ -179,6 +179,28 @@ struct InstructionOperand {
                components[3] == SwizzleSource::kW;
     }
     return false;
+  }
+
+  // Whether absolute values of two operands are identical (useful for emulating
+  // Shader Model 3 0*anything=0 multiplication behavior).
+  bool EqualsAbsolute(const InstructionOperand& other) const {
+    if (storage_source != other.storage_source ||
+        storage_index != other.storage_index ||
+        storage_addressing_mode != other.storage_addressing_mode ||
+        component_count != other.component_count) {
+      return false;
+    }
+    for (int i = 0; i < component_count; ++i) {
+      if (components[i] != other.components[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool operator==(const InstructionOperand& other) const {
+    return EqualsAbsolute(other) && is_negated == other.is_negated &&
+           is_absolute_value == other.is_absolute_value;
   }
 };
 
@@ -470,6 +492,22 @@ struct ParsedAluInstruction {
   // Describes each source operand.
   InstructionOperand operands[3];
 
+  // If this is a valid eA write (MAD with a stream constant), returns the index
+  // of the stream float constant, otherwise returns UINT32_MAX.
+  uint32_t GetMemExportStreamConstant() const {
+    if (result.storage_target == InstructionStorageTarget::kExportAddress &&
+        is_vector_type() && vector_opcode == ucode::AluVectorOpcode::kMad &&
+        result.has_all_writes() &&
+        operands[2].storage_source ==
+            InstructionStorageSource::kConstantFloat &&
+        operands[2].storage_addressing_mode ==
+            InstructionStorageAddressingMode::kStatic &&
+        operands[2].is_standard_swizzle()) {
+      return operands[2].storage_index;
+    }
+    return UINT32_MAX;
+  }
+
   // Disassembles the instruction into ucode assembly text.
   void Disassemble(StringBuffer* out) const;
 };
@@ -524,6 +562,9 @@ class Shader {
     // Each bit corresponds to a storage index [0-255].
     uint32_t bool_bitmap[256 / 32];
 
+    // Total number of kConstantFloat registers read by the shader.
+    uint32_t float_count;
+
     // Computed byte count of all registers required when packed.
     uint32_t packed_byte_length;
   };
@@ -558,8 +599,17 @@ class Shader {
     return constant_register_map_;
   }
 
+  // All c# registers used as the addend in MAD operations to eA.
+  const std::vector<uint32_t>& memexport_stream_constants() const {
+    return memexport_stream_constants_;
+  }
+
   // Returns true if the given color target index [0-3].
   bool writes_color_target(int i) const { return writes_color_targets_[i]; }
+
+  // Returns true if the pixel shader can potentially have early depth/stencil
+  // testing enabled, provided alpha testing is disabled.
+  bool early_z_allowed() const { return early_z_allowed_; }
 
   // True if the shader was translated and prepared without error.
   bool is_valid() const { return is_valid_; }
@@ -609,6 +659,8 @@ class Shader {
   std::vector<TextureBinding> texture_bindings_;
   ConstantRegisterMap constant_register_map_ = {0};
   bool writes_color_targets_[4] = {false, false, false, false};
+  bool early_z_allowed_ = true;
+  std::vector<uint32_t> memexport_stream_constants_;
 
   bool is_valid_ = false;
   bool is_translated_ = false;

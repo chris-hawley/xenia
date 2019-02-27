@@ -555,11 +555,9 @@ VkShaderModule PipelineCache::GetGeometryShader(PrimitiveType primitive_type,
       // TODO(benvanik): quad strip geometry shader.
       assert_always("Quad strips not implemented");
       return nullptr;
-    case PrimitiveType::k2DCopyRectListV0:
-    case PrimitiveType::k2DCopyRectListV1:
-    case PrimitiveType::k2DCopyRectListV2:
-    case PrimitiveType::k2DCopyRectListV3:
-      // TODO(DrChat): Research this.
+    case PrimitiveType::kTrianglePatch:
+    case PrimitiveType::kQuadPatch:
+      assert_always("Tessellation is not implemented");
       return nullptr;
     default:
       assert_unhandled_case(primitive_type);
@@ -660,7 +658,7 @@ bool PipelineCache::SetDynamicState(VkCommandBuffer command_buffer,
   }
 
   // Whether each of the viewport settings are enabled.
-  // http://www.x.org/docs/AMD/old/evergreen_3D_registers_v2.pdf
+  // https://www.x.org/docs/AMD/old/evergreen_3D_registers_v2.pdf
   bool vport_xscale_enable = (regs.pa_cl_vte_cntl & (1 << 0)) > 0;
   bool vport_xoffset_enable = (regs.pa_cl_vte_cntl & (1 << 1)) > 0;
   bool vport_yscale_enable = (regs.pa_cl_vte_cntl & (1 << 2)) > 0;
@@ -865,7 +863,7 @@ bool PipelineCache::SetDynamicState(VkCommandBuffer command_buffer,
       push_constants.window_scale[3] = (-1280.f / window_height_scalar) + 0.5f;
     }
 
-    // http://www.x.org/docs/AMD/old/evergreen_3D_registers_v2.pdf
+    // https://www.x.org/docs/AMD/old/evergreen_3D_registers_v2.pdf
     // VTX_XY_FMT = true: the incoming XY have already been multiplied by 1/W0.
     //            = false: multiply the X, Y coordinates by 1/W0.
     // VTX_Z_FMT = true: the incoming Z has already been multiplied by 1/W0.

@@ -20,6 +20,8 @@
 #include "xenia/kernel/xfile.h"
 #include "xenia/kernel/xthread.h"
 
+DEFINE_bool(xex_apply_patches, true, "Apply XEX patches.");
+
 namespace xe {
 namespace kernel {
 
@@ -100,27 +102,29 @@ X_STATUS UserModule::LoadFromFile(std::string path) {
     return result;
   }
 
-  // Search for xexp patch file
-  auto patch_entry = kernel_state()->file_system()->ResolvePath(path_ + "p");
+  if (FLAGS_xex_apply_patches) {
+    // Search for xexp patch file
+    auto patch_entry = kernel_state()->file_system()->ResolvePath(path_ + "p");
 
-  if (patch_entry) {
-    auto patch_path = patch_entry->absolute_path();
+    if (patch_entry) {
+      auto patch_path = patch_entry->absolute_path();
 
-    XELOGI("Loading XEX patch from %s", patch_path.c_str());
+      XELOGI("Loading XEX patch from %s", patch_path.c_str());
 
-    auto patch_module = object_ref<UserModule>(new UserModule(kernel_state_));
-    result = patch_module->LoadFromFile(patch_path);
-    if (!result) {
-      result = patch_module->xex_module()->ApplyPatch(xex_module());
-      if (result) {
-        XELOGE("Failed to apply XEX patch, code: %d", result);
+      auto patch_module = object_ref<UserModule>(new UserModule(kernel_state_));
+      result = patch_module->LoadFromFile(patch_path);
+      if (!result) {
+        result = patch_module->xex_module()->ApplyPatch(xex_module());
+        if (result) {
+          XELOGE("Failed to apply XEX patch, code: %d", result);
+        }
+      } else {
+        XELOGE("Failed to load XEX patch, code: %d", result);
       }
-    } else {
-      XELOGE("Failed to load XEX patch, code: %d", result);
-    }
 
-    if (result) {
-      return X_STATUS_UNSUCCESSFUL;
+      if (result) {
+        return X_STATUS_UNSUCCESSFUL;
+      }
     }
   }
 
@@ -482,29 +486,32 @@ void UserModule::Dump() {
         std::memset(string_table, 0, sizeof(string_table));
 
         // Parse the string table
-        for (size_t l = 0, j = 0; l < opt_import_libraries->string_table_size;
-             j++) {
-          assert_true(j < xe::countof(string_table));
-          const char* str = opt_import_libraries->string_table + l;
+        for (size_t j = 0, o = 0; j < opt_import_libraries->string_table.size &&
+                                  o < opt_import_libraries->string_table.count;
+             o++) {
+          assert_true(o < xe::countof(string_table));
+          const char* str = &opt_import_libraries->string_table.data[j];
 
-          string_table[j] = str;
-          l += std::strlen(str) + 1;
+          string_table[o] = str;
+          j += std::strlen(str) + 1;
 
           // Padding
-          if ((l % 4) != 0) {
-            l += 4 - (l % 4);
+          if ((j % 4) != 0) {
+            j += 4 - (j % 4);
           }
         }
 
-        auto libraries =
-            reinterpret_cast<const uint8_t*>(opt_import_libraries) +
-            opt_import_libraries->string_table_size + 12;
-        uint32_t library_offset = 0;
-        uint32_t library_count = opt_import_libraries->library_count;
-        for (uint32_t l = 0; l < library_count; l++) {
+        auto library_data =
+            reinterpret_cast<const uint8_t*>(opt_import_libraries);
+        uint32_t library_offset = opt_import_libraries->string_table.size + 12;
+        while (library_offset < opt_import_libraries->size) {
           auto library = reinterpret_cast<const xex2_import_library*>(
-              libraries + library_offset);
+              library_data + library_offset);
+          if (!library->size) {
+            break;
+          }
           auto name = string_table[library->name_index & 0xFF];
+          assert_not_null(name);
           sb.AppendFormat("    %s - %d imports\n", name,
                           (uint16_t)library->count);
 
@@ -782,11 +789,11 @@ void UserModule::Dump() {
         }
         if (kernel_export &&
             kernel_export->type == cpu::Export::Type::kVariable) {
-          sb.AppendFormat("   V %.8X          %.3X (%3d) %s %s\n",
+          sb.AppendFormat("   V %.8X          %.3X (%4d) %s %s\n",
                           info->value_address, info->ordinal, info->ordinal,
                           implemented ? "  " : "!!", name);
         } else if (info->thunk_address) {
-          sb.AppendFormat("   F %.8X %.8X %.3X (%3d) %s %s\n",
+          sb.AppendFormat("   F %.8X %.8X %.3X (%4d) %s %s\n",
                           info->value_address, info->thunk_address,
                           info->ordinal, info->ordinal,
                           implemented ? "  " : "!!", name);
