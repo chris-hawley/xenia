@@ -14,10 +14,10 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
-      - llvm-toolchain-xenial-6.0
+      - llvm-toolchain-xenial-7
     packages:
-      - clang-6.0
-      - llvm-6.0-dev
+      - clang-7
+      - llvm-7-dev
       - g++-8
       - python3
       - libc++-dev
@@ -32,10 +32,10 @@ addons:
 
 matrix:
   include:
-    - env: C_COMPILER=clang-6.0 CXX_COMPILER=clang++-6.0 LINT=true
+    - env: C_COMPILER=clang CXX_COMPILER=clang++-7 LINT=true
       sudo: false
-    - env: C_COMPILER=clang-6.0 CXX_COMPILER=clang++-6.0 BUILD=true CONFIG=Debug
-    - env: C_COMPILER=clang-6.0 CXX_COMPILER=clang++-6.0 BUILD=true CONFIG=Release
+    - env: C_COMPILER=clang-7 CXX_COMPILER=clang++-7 BUILD=true CONFIG=Debug
+    - env: C_COMPILER=clang-7 CXX_COMPILER=clang++-7 BUILD=true CONFIG=Release
 
 git:
   # We handle submodules ourselves in xenia-build setup.
