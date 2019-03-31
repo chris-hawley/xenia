@@ -9,8 +9,11 @@
 
 #include "xenia/base/string.h"
 
-// TODO(benvanik): when GCC finally gets codecvt, use that.
-#if XE_PLATFORM_LINUX
+// codecvt existence check
+#ifdef __clang__
+// using clang
+#if (__clang_major__ < 4)  // 3.3 has it but I think we need at least 4 anyway
+// insufficient clang version
 #define NO_CODECVT 1
 #else
 #include <codecvt>
