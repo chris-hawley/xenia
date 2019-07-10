@@ -569,6 +569,7 @@ void X64ThunkEmitter::EmitLoadVolatileRegs() {
 
 void X64ThunkEmitter::EmitSaveNonvolatileRegs() {
 #if XE_PLATFORM_LINUX
+  // SysV does not have nonvolatile XMM registers.
   mov(qword[rsp + offsetof(StackLayout::Thunk, r[0])], rbx);
   mov(qword[rsp + offsetof(StackLayout::Thunk, r[1])], rbp);
   mov(qword[rsp + offsetof(StackLayout::Thunk, r[2])], r12);
