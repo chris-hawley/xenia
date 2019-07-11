@@ -152,7 +152,9 @@ FileMappingHandle CreateFileMappingHandle(std::wstring path, size_t length,
                             static_cast<DWORD>(length), full_path.c_str());
 }
 
-void CloseFileMappingHandle(FileMappingHandle handle) { CloseHandle(handle); }
+void CloseFileMappingHandle(FileMappingHandle handle, std::wstring path) {
+  CloseHandle(handle);
+}
 
 void* MapFileView(FileMappingHandle handle, void* base_address, size_t length,
                   PageAccess access, size_t file_offset) {
