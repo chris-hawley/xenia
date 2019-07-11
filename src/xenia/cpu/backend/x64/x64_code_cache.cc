@@ -61,7 +61,7 @@ bool X64CodeCache::Initialize() {
   }
 
   // Create mmap file. This allows us to share the code cache with the debugger.
-  file_name_ = std::wstring(L"Local\\xenia_code_cache_") +
+  file_name_ = std::wstring(L"xenia_code_cache_") +
                std::to_wstring(Clock::QueryHostTickCount());
   mapping_ = xe::memory::CreateFileMappingHandle(
       file_name_, kGeneratedCodeSize, xe::memory::PageAccess::kExecuteReadWrite,

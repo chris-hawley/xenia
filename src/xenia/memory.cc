@@ -118,7 +118,7 @@ Memory::~Memory() {
 }
 
 bool Memory::Initialize() {
-  file_name_ = std::wstring(L"Local\\xenia_memory_") +
+  file_name_ = std::wstring(L"xenia_memory_") +
                std::to_wstring(Clock::QueryHostTickCount());
 
   // Create main page file-backed mapping. This is all reserved but

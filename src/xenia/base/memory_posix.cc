@@ -87,7 +87,8 @@ FileMappingHandle CreateFileMappingHandle(std::wstring path, size_t length,
   }
 
   oflag |= O_CREAT;
-  int ret = shm_open(xe::to_string(path).c_str(), oflag, 0777);
+  std::string full_path = "/" + xe::to_string(path);
+  int ret = shm_open(full_path.c_str(), oflag, 0777);
   if (ret > 0) {
     ftruncate64(ret, length);
   }
