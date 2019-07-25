@@ -14,10 +14,10 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
-      - llvm-toolchain-xenial-6.0
+      - llvm-toolchain-xenial-7
     packages:
-      - clang-6.0
-      - llvm-6.0-dev
+      - clang-7
+      - llvm-7-dev
       - g++-8
       - python3
       - libc++-dev
@@ -32,10 +32,10 @@ addons:
 
 matrix:
   include:
-    - env: C_COMPILER=clang-6.0 CXX_COMPILER=clang++-6.0 LINT=true
+    - env: C_COMPILER=clang CXX_COMPILER=clang++-7 LINT=true
       sudo: false
-    - env: C_COMPILER=clang-6.0 CXX_COMPILER=clang++-6.0 BUILD=true CONFIG=Debug
-    - env: C_COMPILER=clang-6.0 CXX_COMPILER=clang++-6.0 BUILD=true CONFIG=Release
+    - env: C_COMPILER=clang-7 CXX_COMPILER=clang++-7 BUILD=true CONFIG=Debug
+    - env: C_COMPILER=clang-7 CXX_COMPILER=clang++-7 BUILD=true CONFIG=Release
 
 git:
   # We handle submodules ourselves in xenia-build setup.
@@ -54,6 +54,7 @@ before_script:
   - if [[ $BUILD == true ]]; then sudo dpkg -i libvulkan1_$LIBVULKAN_VERSION+dfsg1-1ubuntu1~16.04.1_amd64.deb libvulkan-dev_$LIBVULKAN_VERSION+dfsg1-1ubuntu1~16.04.1_amd64.deb; fi
   # Prepare environment (pull dependencies, build tools).
   - travis_retry ./xenia-build setup
+  - if [[ $BUILD == true ]]; then ./third_party/binutils/build.sh; fi
 
 script:
   # Run linter.
@@ -62,9 +63,13 @@ script:
   # Build and run base tests
   - if [[ $BUILD == true ]]; then ./xenia-build build --config=$CONFIG --target=xenia-base-tests; fi
   - if [[ $BUILD == true ]]; then ./build/bin/Linux/$CONFIG/xenia-base-tests; fi
+  # Build and run cpu tests
+  - if [[ $BUILD == true ]]; then ./xenia-build build --config=$CONFIG --target=xenia-cpu-tests; fi
+  - if [[ $BUILD == true ]]; then ./build/bin/Linux/$CONFIG/xenia-cpu-tests; fi
   # Build and run ppc tests
+  - if [[ $BUILD == true ]]; then ./xenia-build gentests; fi
   - if [[ $BUILD == true ]]; then ./xenia-build build --config=$CONFIG --target=xenia-cpu-ppc-tests; fi
-  # - if [[ $BUILD == true ]]; then ./build/bin/Linux/$CONFIG/xenia-cpu-ppc-tests --log_file=stdout; fi
+  - if [[ $BUILD == true ]]; then ./build/bin/Linux/$CONFIG/xenia-cpu-ppc-tests --log_file=stdout; fi
 
   # Build all of xenia.
   - if [[ $BUILD == true ]]; then ./xenia-build build --config=$CONFIG; fi
